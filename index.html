@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Email Assistant</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0f0f0f; --surface: #1a1a1a; --border: #2a2a2a;
+      --accent: #e5173f; --accent-dim: rgba(229,23,63,0.12);
+      --teal: #54b9b3; --teal-dim: rgba(84,185,179,0.1);
+      --text: #f0f0f0; --muted: #777; --success: #4ade80;
+      --mono: 'DM Mono', monospace; --sans: 'DM Sans', sans-serif;
+    }
+    body { background: var(--bg); color: var(--text); font-family: var(--sans); font-size: 13px; min-height: 100vh; display: flex; flex-direction: column; }
+    .header { padding: 14px 16px 12px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 10px; }
+    .header-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 8px var(--accent); animation: pulse 2s ease-in-out infinite; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+    .header-title { font-size: 11px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
+    .header-badge { margin-left: auto; font-family: var(--mono); font-size: 9px; color: var(--teal); background: var(--teal-dim); border: 1px solid rgba(84,185,179,0.2); padding: 2px 7px; border-radius: 20px; }
+    .content { padding: 14px 16px; flex: 1; display: flex; flex-direction: column; gap: 14px; }
+    .api-row { background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px; display: flex; align-items: center; gap: 8px; }
+    .api-label { font-size: 9px; font-family: var(--mono); text-transform: uppercase; letter-spacing: 0.08em; color: #444; white-space: nowrap; }
+    .api-input { flex: 1; background: transparent; border: none; outline: none; font-family: var(--mono); font-size: 11px; color: var(--muted); }
+    .api-input::placeholder { color: #333; }
+    .email-box { background: var(--surface); border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
+    .email-box-header { padding: 8px 12px; border-bottom: 1px solid var(--border); font-size: 10px; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+    .email-body { padding: 12px; font-size: 12.5px; line-height: 1.65; color: #ccc; min-height: 90px; font-family: var(--sans); resize: none; width: 100%; background: transparent; border: none; outline: none; }
+    .email-body::placeholder { color: #444; }
+    .section-label { font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); margin-bottom: 6px; display: block; }
+    .mode-selector { display: flex; gap: 6px; }
+    .mode-btn { flex: 1; padding: 8px 10px; border-radius: 5px; border: 1px solid var(--border); background: var(--surface); color: var(--muted); font-family: var(--sans); font-size: 11px; font-weight: 500; cursor: pointer; transition: all 0.15s; text-align: center; }
+    .mode-btn:hover { border-color: #444; color: var(--text); }
+    .mode-btn.active-red { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); }
+    .mode-btn.active-teal { background: var(--teal-dim); border-color: var(--teal); color: var(--teal); }
+    .mode-desc { font-size: 10px; color: #444; font-family: var(--mono); text-align: center; margin-top: 4px; }
+    .toggles { display: flex; flex-wrap: wrap; gap: 6px; }
+    .toggle { background: var(--surface); border: 1px solid var(--border); border-radius: 4px; padding: 5px 10px; font-size: 11px; color: var(--muted); cursor: pointer; transition: all 0.15s; font-family: var(--sans); }
+    .toggle:hover { border-color: #444; color: var(--text); }
+    .toggle.on-red { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); }
+    .toggle.on-teal { background: var(--teal-dim); border-color: var(--teal); color: var(--teal); }
+    .btn-run { width: 100%; padding: 11px; background: var(--accent); border: none; border-radius: 6px; color: white; font-family: var(--sans); font-size: 12px; font-weight: 600; letter-spacing: 0.05em; cursor: pointer; transition: all 0.15s; display: flex; align-items: center; justify-content: center; gap: 8px; }
+    .btn-run:hover { background: #c91538; transform: translateY(-1px); }
+    .btn-run:active { transform: translateY(0); }
+    .btn-run:disabled { background: #333; color: #555; cursor: not-allowed; transform: none; }
+    .spinner { width: 13px; height: 13px; border: 2px solid rgba(255,255,255,0.2); border-top-color: white; border-radius: 50%; animation: spin 0.7s linear infinite; display: none; }
+    .btn-run.loading .spinner { display: inline-block; }
+    .btn-run.loading .btn-icon { display: none; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .divider { height: 1px; background: var(--border); }
+    .results { display: none; flex-direction: column; gap: 10px; animation: fadeUp 0.3s ease; }
+    .results.visible { display: flex; }
+    @keyframes fadeUp { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
+    .result-section { display: flex; flex-direction: column; gap: 6px; }
+    .result-label { font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); display: flex; align-items: center; gap: 5px; }
+    .dot { width: 5px; height: 5px; border-radius: 50%; display: inline-block; }
+    .dot-red { background: var(--accent); }
+    .dot-teal { background: var(--teal); }
+    .score-row { display: flex; align-items: center; gap: 10px; }
+    .score-bar-bg { flex: 1; height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; }
+    .score-bar-fill { height: 100%; border-radius: 2px; background: var(--teal); transition: width 0.8s cubic-bezier(0.4,0,0.2,1); width: 0%; }
+    .score-num { font-family: var(--mono); font-size: 11px; color: var(--teal); min-width: 28px; text-align: right; }
+    .issues { display: flex; flex-direction: column; gap: 5px; }
+    .issue { background: var(--surface); border: 1px solid var(--border); border-left: 3px solid var(--accent); border-radius: 4px; padding: 8px 10px; font-size: 12px; line-height: 1.5; color: #ccc; }
+    .issue.is-style { border-left-color: var(--teal); }
+    .issue.is-ok { border-left-color: var(--success); }
+    .issue-type { font-size: 9px; font-family: var(--mono); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 3px; }
+    .issue-type.t-grammar { color: var(--accent); }
+    .issue-type.t-style { color: var(--teal); }
+    .issue-type.t-ok { color: var(--success); }
+    .rewrite-box { background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 12px; font-size: 12.5px; line-height: 1.65; color: #ddd; white-space: pre-wrap; font-family: var(--sans); }
+    .actions { display: flex; gap: 8px; }
+    .btn-dismiss { flex: 1; padding: 9px; background: transparent; border: 1px solid var(--border); border-radius: 6px; color: var(--muted); font-family: var(--sans); font-size: 11px; font-weight: 500; cursor: pointer; transition: all 0.15s; }
+    .btn-dismiss:hover { border-color: #555; color: var(--text); }
+    .btn-accept { flex: 2; padding: 9px; background: var(--teal-dim); border: 1px solid var(--teal); border-radius: 6px; color: var(--teal); font-family: var(--sans); font-size: 11px; font-weight: 600; cursor: pointer; transition: all 0.15s; }
+    .btn-accept:hover { background: rgba(84,185,179,0.2); }
+    .footer { padding: 10px 16px; border-top: 1px solid var(--border); font-size: 10px; color: #333; font-family: var(--mono); display: flex; justify-content: space-between; }
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-dot"></div>
+  <span class="header-title">Email Assistant</span>
+  <span class="header-badge">Groq / llama-3</span>
+</div>
+
+<div class="content">
+
+  <div class="api-row">
+    <span class="api-label">API Key</span>
+    <input class="api-input" type="password" id="apiKey" value="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" />
+  </div>
+
+  <div class="email-box">
+    <div class="email-box-header">
+      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <rect x="2" y="4" width="20" height="16" rx="2"/>
+        <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/>
+      </svg>
+      Draft
+    </div>
+    <textarea class="email-body" id="emailBody" rows="6" placeholder="Paste your email draft here...">Hi Jonathan,
+
+Hope your well. Just wanted to touch base regarding the Ancora demo we discussed last week - are you and Paul still good for the 29th? We've got alot to show you and I think it'll be really valueable for the team.
+
+Let me know if there's anything specific you want us to focuss on.
+
+Cheers,
+Edward</textarea>
+  </div>
+
+  <div>
+    <span class="section-label">Mode</span>
+    <div class="mode-selector">
+      <button class="mode-btn active-red" id="btnGrammar">✓ Grammar Check</button>
+      <button class="mode-btn" id="btnFull">✦ Full Review</button>
+    </div>
+    <div class="mode-desc" id="modeDesc">Spelling &amp; grammar only — fast</div>
+  </div>
+
+  <div id="styleRulesSection" style="display:none">
+    <span class="section-label">Style rules</span>
+    <div class="toggles">
+      <button class="toggle on-red" data-rule="no-em-dash">No em dashes</button>
+      <button class="toggle on-teal" data-rule="short-sentences">Short sentences</button>
+      <button class="toggle on-teal" data-rule="plain-language">Plain language</button>
+      <button class="toggle on-red" data-rule="professional">Professional tone</button>
+      <button class="toggle" data-rule="cta">Check CTA</button>
+    </div>
+  </div>
+
+  <!-- Run button: spinner and label are SEPARATE children — innerHTML is never used on this button -->
+  <button class="btn-run" id="runBtn">
+    <div class="spinner" id="runSpinner"></div>
+    <svg class="btn-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+      <polygon points="5 3 19 12 5 21 5 3"/>
+    </svg>
+    <span id="runBtnLabel">Check Grammar</span>
+  </button>
+
+  <div class="divider"></div>
+
+  <div class="results" id="results">
+
+    <div class="result-section" id="scoreSection" style="display:none">
+      <div class="result-label"><span class="dot dot-teal"></span> Quality Score</div>
+      <div class="score-row">
+        <div class="score-bar-bg">
+          <div class="score-bar-fill" id="scoreBar"></div>
+        </div>
+        <span class="score-num" id="scoreNum">—</span>
+      </div>
+    </div>
+
+    <div class="result-section">
+      <div class="result-label"><span class="dot dot-red"></span> Issues Found</div>
+      <div class="issues" id="issuesList"></div>
+    </div>
+
+    <div class="result-section" id="rewriteSection" style="display:none">
+      <div class="result-label"><span class="dot dot-teal"></span> Suggested Rewrite</div>
+      <div class="rewrite-box" id="rewriteBox"></div>
+      <div class="actions">
+        <button class="btn-dismiss" id="btnDismiss">Dismiss</button>
+        <button class="btn-accept" id="btnAccept">✓ Accept Rewrite</button>
+      </div>
+    </div>
+
+  </div>
+
+</div>
+
+<div class="footer">
+  <span>outlook-grammar-addin v0.3</span>
+  <span id="tokenCount">—</span>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  var currentMode = 'grammar';
+
+  function el(id) {
+    var node = document.getElementById(id);
+    if (!node) console.warn('Missing element: #' + id);
+    return node;
+  }
+
+  function setLoading(on) {
+    var btn = el('runBtn');
+    if (on) {
+      btn.disabled = true;
+      btn.classList.add('loading');
+    } else {
+      btn.disabled = false;
+      btn.classList.remove('loading');
+    }
+  }
+
+  function setMode(mode) {
+    currentMode = mode;
+    if (mode === 'grammar') {
+      el('btnGrammar').className = 'mode-btn active-red';
+      el('btnFull').className = 'mode-btn';
+      el('styleRulesSection').style.display = 'none';
+      el('modeDesc').textContent = 'Spelling & grammar only — fast';
+      el('runBtnLabel').textContent = 'Check Grammar';
+    } else {
+      el('btnFull').className = 'mode-btn active-teal';
+      el('btnGrammar').className = 'mode-btn';
+      el('styleRulesSection').style.display = 'block';
+      el('modeDesc').textContent = 'Grammar + style + full rewrite';
+      el('runBtnLabel').textContent = 'Full Review';
+    }
+    hideResults();
+  }
+
+  function hideResults() {
+    el('results').classList.remove('visible');
+  }
+
+  function renderResults(data, tokens) {
+    // Score
+    if (currentMode === 'full' && data.score !== undefined) {
+      el('scoreSection').style.display = 'flex';
+      var score = Math.min(100, Math.max(0, Number(data.score) || 0));
+      el('scoreBar').style.width = score + '%';
+      el('scoreNum').textContent = score + '%';
+    } else {
+      el('scoreSection').style.display = 'none';
+    }
+
+    // Issues
+    var list = el('issuesList');
+    list.innerHTML = '';
+    var issues = data.issues || [];
+    if (issues.length > 0) {
+      issues.forEach(function (issue) {
+        var d = document.createElement('div');
+        var isStyle = (issue.type || '') === 'style';
+        d.className = 'issue' + (isStyle ? ' is-style' : '');
+        var tc = isStyle ? 't-style' : 't-grammar';
+        d.innerHTML = '<div class="issue-type ' + tc + '">' + (issue.type || 'issue') + '</div>' + (issue.text || '');
+        list.appendChild(d);
+      });
+    } else {
+      var ok = document.createElement('div');
+      ok.className = 'issue is-ok';
+      ok.innerHTML = '<div class="issue-type t-ok">all clear</div>No issues found.';
+      list.appendChild(ok);
+    }
+
+    // Rewrite
+    if (currentMode === 'full' && data.rewrite) {
+      el('rewriteSection').style.display = 'flex';
+      el('rewriteBox').textContent = data.rewrite;
+    } else {
+      el('rewriteSection').style.display = 'none';
+    }
+
+    if (tokens) el('tokenCount').textContent = tokens + ' tokens';
+    el('results').classList.add('visible');
+  }
+
+  async function runCheck() {
+    var apiKey = el('apiKey').value.trim();
+    var emailBody = el('emailBody').value.trim();
+    if (!emailBody) { alert('Paste an email draft first.'); return; }
+    if (!apiKey) { alert('Enter your Groq API key.'); return; }
+
+    setLoading(true);
+
+    var systemPrompt;
+    if (currentMode === 'grammar') {
+      systemPrompt = 'You are a grammar and spelling checker. Respond ONLY with valid JSON: {"issues":[{"type":"grammar","text":"description of error and fix"}]}. Only flag real errors. If none, return {"issues":[]}.';
+    } else {
+      var rules = [];
+      document.querySelectorAll('.toggle').forEach(function (t) {
+        if (t.classList.contains('on-red') || t.classList.contains('on-teal')) rules.push(t.dataset.rule);
+      });
+      systemPrompt = 'You are an email writing assistant. Respond ONLY with valid JSON on a single line, no newlines inside string values. Format: {"score":85,"issues":[{"type":"grammar","text":"description"}],"rewrite":"corrected email with \\n for line breaks"}. Style rules: ' + rules.join(', ') + '. Rewrite: concise, professional, no em dashes, short sentences.';
+    }
+
+    try {
+      var resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + apiKey },
+        body: JSON.stringify({
+          model: 'llama-3.3-70b-versatile',
+          max_tokens: 1000,
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: emailBody }
+          ]
+        })
+      });
+      var data = await resp.json();
+      var raw = (data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) || '';
+      var tokens = data.usage && data.usage.total_tokens;
+      var cleaned = raw.replace(/```json|```/g, '').trim();
+      // Remove control characters that break JSON.parse (newlines inside strings etc)
+      cleaned = cleaned.replace(/[\u0000-\u001F\u007F]/g, function(c) {
+        // Keep legitimate JSON whitespace tokens outside strings
+        if (c === '\n' || c === '\r' || c === '\t') return ' ';
+        return '';
+      });
+      var parsed = JSON.parse(cleaned);
+      renderResults(parsed, tokens);
+    } catch (err) {
+      alert('Error: ' + (err.message || 'Check your API key and try again.'));
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  // Wire up events
+  el('btnGrammar').addEventListener('click', function () { setMode('grammar'); });
+  el('btnFull').addEventListener('click', function () { setMode('full'); });
+  el('runBtn').addEventListener('click', runCheck);
+  el('btnDismiss').addEventListener('click', hideResults);
+  el('btnAccept').addEventListener('click', function () {
+    el('emailBody').value = el('rewriteBox').textContent;
+    hideResults();
+  });
+  document.querySelectorAll('.toggle').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      if (btn.classList.contains('on-red') || btn.classList.contains('on-teal')) {
+        btn.classList.remove('on-red', 'on-teal');
+      } else {
+        btn.classList.add('on-red');
+      }
+    });
+  });
+
+})();
+</script>
+</body>
+</html>
