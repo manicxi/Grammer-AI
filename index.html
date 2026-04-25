@@ -118,11 +118,11 @@
   <div id="styleRulesSection" style="display:none">
     <span class="section-label">Style rules</span>
     <div class="toggles">
-      <button class="toggle on-red" data-rule="no-em-dash">No em dashes</button>
       <button class="toggle on-teal" data-rule="short-sentences">Short sentences</button>
       <button class="toggle on-teal" data-rule="plain-language">Plain language</button>
       <button class="toggle on-red" data-rule="professional">Professional tone</button>
       <button class="toggle" data-rule="cta">Check CTA</button>
+      <button class="toggle" data-rule="bullet-points">Bullet point topics</button>
     </div>
   </div>
 
@@ -167,7 +167,7 @@
 </div>
 
 <div class="footer">
-  <span>outlook-grammar-addin v0.4</span>
+  <span>outlook-grammar-addin v0.5</span>
   <span id="tokenCount">—</span>
 </div>
 
@@ -258,7 +258,8 @@ function init() {
       document.querySelectorAll('.toggle').forEach(function (t) {
         if (t.classList.contains('on-red') || t.classList.contains('on-teal')) rules.push(t.dataset.rule);
       });
-      systemPrompt = 'You are an email writing assistant. Respond ONLY with valid JSON on a single line, using \\n for line breaks inside strings: {"score":85,"issues":[{"type":"grammar","text":"description"}],"rewrite":"corrected email"}. Style rules: ' + rules.join(', ') + '. Rewrite: concise, professional, no em dashes, short sentences.';
+      var bulletPoints = rules.indexOf('bullet-points') !== -1;
+      systemPrompt = 'You are an email writing assistant. Respond ONLY with valid JSON on a single line, using \\n for line breaks inside strings: {"score":85,"issues":[{"type":"grammar","text":"description"}],"rewrite":"corrected email"}. Style rules: ' + rules.join(', ') + '. Rewrite: concise, professional, no em dashes, short sentences.' + (bulletPoints ? ' If the email covers multiple topics, restructure them as bullet points.' : '');
     }
 
     try {
