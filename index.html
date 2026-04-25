@@ -173,7 +173,7 @@
 </div>
 
 <div class="footer">
-  <span>outlook-grammar-addin v0.11</span>
+  <span>outlook-grammar-addin v0.12</span>
   <span id="tokenCount">—</span>
 </div>
 
@@ -367,7 +367,7 @@ function init() {
     // Rewrite
     if (data.rewrite) {
       el('rewriteSection').style.display = 'flex';
-      el('rewriteBox').textContent = data.rewrite;
+      el('rewriteBox').textContent = data.rewrite.replace(/\\n/g, '\n');
     } else {
       el('rewriteSection').style.display = 'none';
     }
@@ -385,7 +385,12 @@ function init() {
     var rewrite = el('rewriteBox').textContent;
     el('emailBody').value = rewrite;
     if (Office.context && Office.context.mailbox && Office.context.mailbox.item) {
-      Office.context.mailbox.item.body.setAsync(rewrite, { coercionType: Office.CoercionType.Text });
+      // Convert plain text line breaks to HTML paragraphs for proper formatting
+      var html = rewrite
+        .split(/\n\n+/)
+        .map(function(p) { return '<p>' + p.replace(/\n/g, '<br>') + '</p>'; })
+        .join('');
+      Office.context.mailbox.item.body.setAsync(html, { coercionType: Office.CoercionType.Html });
     }
     hideResults();
   });
