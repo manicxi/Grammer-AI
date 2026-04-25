@@ -93,9 +93,9 @@
 
 <div class="content">
 
-  <div class="api-row">
+  <div class="api-row" style="display:none">
     <span class="api-label">API Key</span>
-    <input class="api-input" type="password" id="apiKey" value="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" />
+    <input class="api-input" type="password" id="apiKey" style="display:none" />
   </div>
 
   <div class="email-box">
@@ -167,7 +167,7 @@
 </div>
 
 <div class="footer">
-  <span>outlook-grammar-addin v0.7</span>
+  <span>outlook-grammar-addin v0.9</span>
   <span id="tokenCount">—</span>
 </div>
 
@@ -245,8 +245,6 @@ function init() {
     var apiKey = el('apiKey').value.trim();
     var emailBody = el('emailBody').value.trim();
     if (!emailBody) { alert('No email text found. Paste your draft manually.'); return; }
-    if (!apiKey) { alert('Enter your Groq API key.'); return; }
-
     el('runBtn').disabled = true;
     el('runBtn').classList.add('loading');
 
@@ -263,9 +261,9 @@ function init() {
     }
 
     try {
-      var resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      var resp = await fetch('https://grammer-d7lwnffin-manicxis-projects.vercel.app/api/groq', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + apiKey },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           model: 'llama-3.3-70b-versatile',
           max_tokens: 1000,
