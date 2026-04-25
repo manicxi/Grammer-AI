@@ -167,7 +167,7 @@
 </div>
 
 <div class="footer">
-  <span>outlook-grammar-addin v0.5</span>
+  <span>outlook-grammar-addin v0.6</span>
   <span id="tokenCount">—</span>
 </div>
 
@@ -252,7 +252,7 @@ function init() {
 
     var systemPrompt;
     if (currentMode === 'grammar') {
-      systemPrompt = 'You are a grammar and spelling checker. Respond ONLY with valid JSON on a single line: {"issues":[{"type":"grammar","text":"description of error and fix"}]}. Only flag real errors. If none, return {"issues":[]}.';
+      systemPrompt = 'You are a grammar and spelling checker. Respond ONLY with valid JSON on a single line: {"issues":[{"type":"grammar","text":"description of error and fix"}],"rewrite":"full corrected version of the email"}. Only flag real grammar and spelling errors. Always include the rewrite with all errors fixed.';
     } else {
       var rules = [];
       document.querySelectorAll('.toggle').forEach(function (t) {
@@ -324,7 +324,7 @@ function init() {
     }
 
     // Rewrite
-    if (currentMode === 'full' && data.rewrite) {
+    if (data.rewrite) {
       el('rewriteSection').style.display = 'flex';
       el('rewriteBox').textContent = data.rewrite;
     } else {
