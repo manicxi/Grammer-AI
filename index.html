@@ -182,6 +182,14 @@ Edward</textarea>
 
 <script>
 Office.onReady(function() {
+  // Auto-read the email body when pane opens
+  if (Office.context Office.onReady(function() {Office.onReady(function() { Office.context.mailbox Office.onReady(function() {Office.onReady(function() { Office.context.mailbox.item) {
+    Office.context.mailbox.item.body.getAsync("text", function(result) {
+      if (result.status === Office.AsyncResultStatus.Succeeded && result.value.trim()) {
+        document.getElementById("emailBody").value = result.value.trim();
+      }
+    });
+  }
 (function () {
   'use strict';
 
@@ -326,7 +334,11 @@ Office.onReady(function() {
   el('runBtn').addEventListener('click', runCheck);
   el('btnDismiss').addEventListener('click', hideResults);
   el('btnAccept').addEventListener('click', function () {
-    el('emailBody').value = el('rewriteBox').textContent;
+    var rewrite = el('rewriteBox').textContent;
+    el('emailBody').value = rewrite;
+    if (Office.context && Office.context.mailbox && Office.context.mailbox.item) {
+      Office.context.mailbox.item.body.setAsync(rewrite, { coercionType: Office.CoercionType.Text });
+    }
     hideResults();
   });
   document.querySelectorAll('.toggle').forEach(function (btn) {
