@@ -93,9 +93,15 @@
 
 <div class="content">
 
-  <div class="api-row" style="display:none">
+  <div class="api-row" id="apiRow">
     <span class="api-label">API Key</span>
-    <input class="api-input" type="password" id="apiKey" style="display:none" />
+    <input class="api-input" type="password" id="apiKey" placeholder="Enter Groq API key..." />
+    <button class="refresh-btn" id="saveKeyBtn">Save</button>
+  </div>
+  <div class="api-row" id="apiSavedRow" style="display:none">
+    <span class="api-label">API Key</span>
+    <span style="flex:1;font-family:var(--mono);font-size:11px;color:#444">●●●●●●●●●●●●●●●●●●●●</span>
+    <button class="refresh-btn" id="changeKeyBtn">Change</button>
   </div>
 
   <div class="email-box">
@@ -115,7 +121,7 @@
     <div class="mode-desc" id="modeDesc">Spelling &amp; grammar only — fast</div>
   </div>
 
-  <div id="styleRulesSection" style="display:none">
+  <div id="styleRulesSection" placeholder="Enter Groq API key...">
     <span class="section-label">Style rules</span>
     <div class="toggles">
       <button class="toggle on-teal" data-rule="short-sentences">Short sentences</button>
@@ -138,7 +144,7 @@
 
   <div class="results" id="results">
 
-    <div class="result-section" id="scoreSection" style="display:none">
+    <div class="result-section" id="scoreSection" placeholder="Enter Groq API key...">
       <div class="result-label"><span class="dot dot-teal"></span> Quality Score</div>
       <div class="score-row">
         <div class="score-bar-bg">
@@ -153,7 +159,7 @@
       <div class="issues" id="issuesList"></div>
     </div>
 
-    <div class="result-section" id="rewriteSection" style="display:none">
+    <div class="result-section" id="rewriteSection" placeholder="Enter Groq API key...">
       <div class="result-label"><span class="dot dot-teal"></span> Suggested Rewrite</div>
       <div class="rewrite-box" id="rewriteBox"></div>
       <div class="actions">
@@ -167,7 +173,7 @@
 </div>
 
 <div class="footer">
-  <span>outlook-grammar-addin v0.9</span>
+  <span>outlook-grammar-addin v0.11</span>
   <span id="tokenCount">—</span>
 </div>
 
@@ -181,6 +187,41 @@ function init() {
   function el(id) {
     return document.getElementById(id);
   }
+
+  // API key localStorage handling
+  function loadKey() {
+    try {
+      var saved = localStorage.getItem('groq_api_key');
+      if (saved) {
+        el('apiKey').value = saved;
+        el('apiRow').style.display = 'none';
+        el('apiSavedRow').style.display = 'flex';
+      }
+    } catch(e) {}
+  }
+
+  function saveKey() {
+    var key = el('apiKey').value.trim();
+    if (!key) { alert('Please enter your Groq API key first.'); return; }
+    try {
+      localStorage.setItem('groq_api_key', key);
+      el('apiRow').style.display = 'none';
+      el('apiSavedRow').style.display = 'flex';
+    } catch(e) {
+      alert('Could not save key: ' + e.message);
+    }
+  }
+
+  function changeKey() {
+    el('apiSavedRow').style.display = 'none';
+    el('apiRow').style.display = 'flex';
+    el('apiKey').value = '';
+    el('apiKey').focus();
+  }
+
+  loadKey();
+  el('saveKeyBtn').addEventListener('click', saveKey);
+  el('changeKeyBtn').addEventListener('click', changeKey);
 
   // Pull email body from Outlook
   function pullEmailBody() {
@@ -245,6 +286,8 @@ function init() {
     var apiKey = el('apiKey').value.trim();
     var emailBody = el('emailBody').value.trim();
     if (!emailBody) { alert('No email text found. Paste your draft manually.'); return; }
+    if (!apiKey) { alert('Enter your Groq API key.'); return; }
+
     el('runBtn').disabled = true;
     el('runBtn').classList.add('loading');
 
@@ -261,9 +304,9 @@ function init() {
     }
 
     try {
-      var resp = await fetch('https://grammer-d7lwnffin-manicxis-projects.vercel.app/api/groq', {
+      var resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + apiKey },
         body: JSON.stringify({
           model: 'llama-3.3-70b-versatile',
           max_tokens: 1000,
