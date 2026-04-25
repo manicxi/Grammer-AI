@@ -2,10 +2,10 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta http-equiv="X-UA-Compatible" content="IE=Edge"/>
-  <script src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js" type="text/javascript"></script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta http-equiv="X-UA-Compatible" content="IE=Edge"/>
   <title>Email Assistant</title>
+  <script src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js" type="text/javascript"></script>
   <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -28,9 +28,11 @@
     .api-input { flex: 1; background: transparent; border: none; outline: none; font-family: var(--mono); font-size: 11px; color: var(--muted); }
     .api-input::placeholder { color: #333; }
     .email-box { background: var(--surface); border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
-    .email-box-header { padding: 8px 12px; border-bottom: 1px solid var(--border); font-size: 10px; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+    .email-box-header { padding: 8px 12px; border-bottom: 1px solid var(--border); font-size: 10px; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); display: flex; align-items: center; justify-content: space-between; }
     .email-body { padding: 12px; font-size: 12.5px; line-height: 1.65; color: #ccc; min-height: 90px; font-family: var(--sans); resize: none; width: 100%; background: transparent; border: none; outline: none; }
     .email-body::placeholder { color: #444; }
+    .refresh-btn { font-size: 9px; font-family: var(--mono); color: var(--teal); background: none; border: none; cursor: pointer; padding: 2px 6px; border-radius: 3px; }
+    .refresh-btn:hover { background: var(--teal-dim); }
     .section-label { font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); margin-bottom: 6px; display: block; }
     .mode-selector { display: flex; gap: 6px; }
     .mode-btn { flex: 1; padding: 8px 10px; border-radius: 5px; border: 1px solid var(--border); background: var(--surface); color: var(--muted); font-family: var(--sans); font-size: 11px; font-weight: 500; cursor: pointer; transition: all 0.15s; text-align: center; }
@@ -98,13 +100,10 @@
 
   <div class="email-box">
     <div class="email-box-header">
-      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <rect x="2" y="4" width="20" height="16" rx="2"/>
-        <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/>
-      </svg>
-      Draft
+      <span>Draft</span>
+      <button class="refresh-btn" id="refreshBtn">↻ Pull from email</button>
     </div>
-    <textarea class="email-body" id="emailBody" rows="6" placeholder="Paste your email draft here..."></textarea>
+    <textarea class="email-body" id="emailBody" rows="6" placeholder="Opening email..."></textarea>
   </div>
 
   <div>
@@ -127,7 +126,6 @@
     </div>
   </div>
 
-  <!-- Run button: spinner and label are SEPARATE children — innerHTML is never used on this button -->
   <button class="btn-run" id="runBtn">
     <div class="spinner" id="runSpinner"></div>
     <svg class="btn-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
@@ -169,42 +167,44 @@
 </div>
 
 <div class="footer">
-  <span>outlook-grammar-addin v0.3</span>
+  <span>outlook-grammar-addin v0.4</span>
   <span id="tokenCount">—</span>
 </div>
 
 <script>
-Office.onReady(function() {
-  // Auto-read the email body when pane opens
-  if (Office.context Office.onReady(function() {Office.onReady(function() { Office.context.mailbox Office.onReady(function() {Office.onReady(function() { Office.context.mailbox.item) {
-    Office.context.mailbox.item.body.getAsync("text", function(result) {
-      if (result.status === Office.AsyncResultStatus.Succeeded && result.value.trim()) {
-        document.getElementById("emailBody").value = result.value.trim();
-      }
-    });
-  }
-(function () {
+Office.onReady(function () {
   'use strict';
 
   var currentMode = 'grammar';
 
   function el(id) {
-    var node = document.getElementById(id);
-    if (!node) console.warn('Missing element: #' + id);
-    return node;
+    return document.getElementById(id);
   }
 
-  function setLoading(on) {
-    var btn = el('runBtn');
-    if (on) {
-      btn.disabled = true;
-      btn.classList.add('loading');
+  // Pull email body from Outlook
+  function pullEmailBody() {
+    if (Office.context && Office.context.mailbox && Office.context.mailbox.item) {
+      el('emailBody').placeholder = 'Pulling from email...';
+      Office.context.mailbox.item.body.getAsync(Office.CoercionType.Text, function (result) {
+        if (result.status === Office.AsyncResultStatus.Succeeded && result.value.trim()) {
+          el('emailBody').value = result.value.trim();
+          el('emailBody').placeholder = 'Paste your email draft here...';
+        } else {
+          el('emailBody').placeholder = 'Could not pull email — paste manually.';
+        }
+      });
     } else {
-      btn.disabled = false;
-      btn.classList.remove('loading');
+      el('emailBody').placeholder = 'Paste your email draft here...';
     }
   }
 
+  // Auto-pull on load
+  pullEmailBody();
+
+  // Manual refresh button
+  el('refreshBtn').addEventListener('click', pullEmailBody);
+
+  // Mode switching
   function setMode(mode) {
     currentMode = mode;
     if (mode === 'grammar') {
@@ -223,8 +223,71 @@ Office.onReady(function() {
     hideResults();
   }
 
-  function hideResults() {
-    el('results').classList.remove('visible');
+  el('btnGrammar').addEventListener('click', function () { setMode('grammar'); });
+  el('btnFull').addEventListener('click', function () { setMode('full'); });
+
+  // Style toggles
+  document.querySelectorAll('.toggle').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      if (btn.classList.contains('on-red') || btn.classList.contains('on-teal')) {
+        btn.classList.remove('on-red', 'on-teal');
+      } else {
+        btn.classList.add('on-red');
+      }
+    });
+  });
+
+  // Run check
+  el('runBtn').addEventListener('click', runCheck);
+
+  async function runCheck() {
+    var apiKey = el('apiKey').value.trim();
+    var emailBody = el('emailBody').value.trim();
+    if (!emailBody) { alert('No email text found. Paste your draft manually.'); return; }
+    if (!apiKey) { alert('Enter your Groq API key.'); return; }
+
+    el('runBtn').disabled = true;
+    el('runBtn').classList.add('loading');
+
+    var systemPrompt;
+    if (currentMode === 'grammar') {
+      systemPrompt = 'You are a grammar and spelling checker. Respond ONLY with valid JSON on a single line: {"issues":[{"type":"grammar","text":"description of error and fix"}]}. Only flag real errors. If none, return {"issues":[]}.';
+    } else {
+      var rules = [];
+      document.querySelectorAll('.toggle').forEach(function (t) {
+        if (t.classList.contains('on-red') || t.classList.contains('on-teal')) rules.push(t.dataset.rule);
+      });
+      systemPrompt = 'You are an email writing assistant. Respond ONLY with valid JSON on a single line, using \\n for line breaks inside strings: {"score":85,"issues":[{"type":"grammar","text":"description"}],"rewrite":"corrected email"}. Style rules: ' + rules.join(', ') + '. Rewrite: concise, professional, no em dashes, short sentences.';
+    }
+
+    try {
+      var resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + apiKey },
+        body: JSON.stringify({
+          model: 'llama-3.3-70b-versatile',
+          max_tokens: 1000,
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: emailBody }
+          ]
+        })
+      });
+      var data = await resp.json();
+      var raw = (data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) || '';
+      var tokens = data.usage && data.usage.total_tokens;
+      var cleaned = raw.replace(/```json|```/g, '').trim();
+      cleaned = cleaned.replace(/[\u0000-\u001F\u007F]/g, function (c) {
+        return (c === '\n' || c === '\r' || c === '\t') ? ' ' : '';
+      });
+      var parsed = JSON.parse(cleaned);
+      renderResults(parsed, tokens);
+    } catch (err) {
+      alert('Error: ' + (err.message || 'Check your API key and try again.'));
+    } finally {
+      el('runBtn').disabled = false;
+      el('runBtn').classList.remove('loading');
+    }
   }
 
   function renderResults(data, tokens) {
@@ -270,61 +333,10 @@ Office.onReady(function() {
     el('results').classList.add('visible');
   }
 
-  async function runCheck() {
-    var apiKey = el('apiKey').value.trim();
-    var emailBody = el('emailBody').value.trim();
-    if (!emailBody) { alert('Paste an email draft first.'); return; }
-    if (!apiKey) { alert('Enter your Groq API key.'); return; }
-
-    setLoading(true);
-
-    var systemPrompt;
-    if (currentMode === 'grammar') {
-      systemPrompt = 'You are a grammar and spelling checker. Respond ONLY with valid JSON: {"issues":[{"type":"grammar","text":"description of error and fix"}]}. Only flag real errors. If none, return {"issues":[]}.';
-    } else {
-      var rules = [];
-      document.querySelectorAll('.toggle').forEach(function (t) {
-        if (t.classList.contains('on-red') || t.classList.contains('on-teal')) rules.push(t.dataset.rule);
-      });
-      systemPrompt = 'You are an email writing assistant. Respond ONLY with valid JSON on a single line, no newlines inside string values. Format: {"score":85,"issues":[{"type":"grammar","text":"description"}],"rewrite":"corrected email with \\n for line breaks"}. Style rules: ' + rules.join(', ') + '. Rewrite: concise, professional, no em dashes, short sentences.';
-    }
-
-    try {
-      var resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + apiKey },
-        body: JSON.stringify({
-          model: 'llama-3.3-70b-versatile',
-          max_tokens: 1000,
-          messages: [
-            { role: 'system', content: systemPrompt },
-            { role: 'user', content: emailBody }
-          ]
-        })
-      });
-      var data = await resp.json();
-      var raw = (data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) || '';
-      var tokens = data.usage && data.usage.total_tokens;
-      var cleaned = raw.replace(/```json|```/g, '').trim();
-      // Remove control characters that break JSON.parse (newlines inside strings etc)
-      cleaned = cleaned.replace(/[\u0000-\u001F\u007F]/g, function(c) {
-        // Keep legitimate JSON whitespace tokens outside strings
-        if (c === '\n' || c === '\r' || c === '\t') return ' ';
-        return '';
-      });
-      var parsed = JSON.parse(cleaned);
-      renderResults(parsed, tokens);
-    } catch (err) {
-      alert('Error: ' + (err.message || 'Check your API key and try again.'));
-    } finally {
-      setLoading(false);
-    }
+  function hideResults() {
+    el('results').classList.remove('visible');
   }
 
-  // Wire up events
-  el('btnGrammar').addEventListener('click', function () { setMode('grammar'); });
-  el('btnFull').addEventListener('click', function () { setMode('full'); });
-  el('runBtn').addEventListener('click', runCheck);
   el('btnDismiss').addEventListener('click', hideResults);
   el('btnAccept').addEventListener('click', function () {
     var rewrite = el('rewriteBox').textContent;
@@ -334,17 +346,7 @@ Office.onReady(function() {
     }
     hideResults();
   });
-  document.querySelectorAll('.toggle').forEach(function (btn) {
-    btn.addEventListener('click', function () {
-      if (btn.classList.contains('on-red') || btn.classList.contains('on-teal')) {
-        btn.classList.remove('on-red', 'on-teal');
-      } else {
-        btn.classList.add('on-red');
-      }
-    });
-  });
 
-})();
 });
 </script>
 </body>
