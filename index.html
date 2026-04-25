@@ -172,7 +172,8 @@
 </div>
 
 <script>
-Office.onReady(function () {
+if (typeof Office !== "undefined") { Office.onReady(init); } else { init(); }
+function init() {
   'use strict';
 
   var currentMode = 'grammar';
@@ -347,7 +348,7 @@ Office.onReady(function () {
     hideResults();
   });
 
-});
+}
 </script>
 </body>
 </html>
