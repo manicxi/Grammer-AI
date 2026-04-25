@@ -173,7 +173,7 @@
 </div>
 
 <div class="footer">
-  <span>outlook-grammar-addin v0.12</span>
+  <span>outlook-grammar-addin v0.13</span>
   <span id="tokenCount">—</span>
 </div>
 
@@ -293,14 +293,14 @@ function init() {
 
     var systemPrompt;
     if (currentMode === 'grammar') {
-      systemPrompt = 'You are a grammar and spelling checker. You MUST respond ONLY with valid JSON on a single line. No other text. Format: {"issues":[{"type":"grammar","text":"description and fix"}],"rewrite":"the complete email with every error corrected"}. The rewrite field is REQUIRED - always include it. If no errors, still include rewrite with the original text unchanged.';
+      systemPrompt = 'You are a grammar and spelling checker. You MUST respond ONLY with valid JSON on a single line. No other text. Format: {"issues":[{"type":"grammar","text":"description and fix"}],"rewrite":"the complete email with every error corrected"}. The rewrite field is REQUIRED. Preserve all paragraph breaks using \\n\\n between paragraphs. Keep the same structure and layout as the original email. If no errors, return the original text unchanged with paragraph breaks preserved.';
     } else {
       var rules = [];
       document.querySelectorAll('.toggle').forEach(function (t) {
         if (t.classList.contains('on-red') || t.classList.contains('on-teal')) rules.push(t.dataset.rule);
       });
       var bulletPoints = rules.indexOf('bullet-points') !== -1;
-      systemPrompt = 'You are an email writing assistant. Respond ONLY with valid JSON on a single line, using \\n for line breaks inside strings: {"score":85,"issues":[{"type":"grammar","text":"description"}],"rewrite":"corrected email"}. Style rules: ' + rules.join(', ') + '. Rewrite: concise, professional, no em dashes, short sentences.' + (bulletPoints ? ' If the email covers multiple topics, restructure them as bullet points.' : '');
+      systemPrompt = 'You are an email writing assistant. Respond ONLY with valid JSON on a single line, using \\n\\n between paragraphs and \\n for single line breaks: {"score":85,"issues":[{"type":"grammar","text":"description"}],"rewrite":"corrected email"}. Style rules: ' + rules.join(', ') + '. Rewrite: concise, professional, no em dashes, short sentences. IMPORTANT: preserve paragraph structure using \\n\\n between paragraphs.' + (bulletPoints ? ' If the email covers multiple topics, restructure them as bullet points.' : '');
     }
 
     try {
