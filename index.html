@@ -173,7 +173,7 @@
 </div>
 
 <div class="footer">
-  <span>outlook-grammar-addin v0.16</span>
+  <span>outlook-grammar-addin v0.17</span>
   <span id="tokenCount">—</span>
 </div>
 
@@ -238,13 +238,13 @@ function init() {
 
           // Remove quoted reply blocks (blockquote, .gmail_quote, #divRplyFwdMsg etc)
           var quoted = div.querySelectorAll('blockquote, .gmail_quote, #divRplyFwdMsg, hr');
-          quoted.forEach(function(el) {
+          quoted.forEach(function(qNode) {
             // Remove this element and everything after it
-            var parent = el.parentNode;
+            var parent = qNode.parentNode;
             if (parent) {
               var removing = false;
               Array.from(parent.childNodes).forEach(function(node) {
-                if (node === el) removing = true;
+                if (node === qNode) removing = true;
                 if (removing) parent.removeChild(node);
               });
             }
@@ -424,7 +424,16 @@ function init() {
       // Reattach original signature
       var sig = window._currentSignature || '';
       if (sig) rewriteText = rewriteText + '\n\n' + sig;
-      el('rewriteBox').textContent = rewriteText;
+      // Store plain text for paste-back
+      window._rewritePlainText = rewriteText;
+      // Display with proper line breaks in preview
+      el('rewriteBox').innerHTML = rewriteText
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/\n\n/g, '</p><p>')
+        .replace(/\n/g, '<br>');
+      el('rewriteBox').innerHTML = '<p>' + el('rewriteBox').innerHTML + '</p>';
     } else {
       el('rewriteSection').style.display = 'none';
     }
@@ -439,7 +448,7 @@ function init() {
 
   el('btnDismiss').addEventListener('click', hideResults);
   el('btnAccept').addEventListener('click', function () {
-    var rewrite = el('rewriteBox').textContent;
+    var rewrite = window._rewritePlainText || el('rewriteBox').innerText;
     el('emailBody').value = rewrite;
     if (Office.context && Office.context.mailbox && Office.context.mailbox.item) {
       // Convert plain text line breaks to HTML paragraphs for proper formatting
