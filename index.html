@@ -173,7 +173,7 @@
 </div>
 
 <div class="footer">
-  <span>outlook-grammar-addin v0.15</span>
+  <span>outlook-grammar-addin v0.16</span>
   <span id="tokenCount">—</span>
 </div>
 
@@ -231,10 +231,42 @@ function init() {
         if (result.status === Office.AsyncResultStatus.Succeeded && result.value.trim()) {
           // Store original HTML body for writing back later
           window._originalHtmlBody = result.value;
-          // Strip HTML tags for display and AI processing
+
+          // Parse HTML to find just the new compose area
           var div = document.createElement('div');
           div.innerHTML = result.value;
-          el('emailBody').value = div.innerText || div.textContent || '';
+
+          // Remove quoted reply blocks (blockquote, .gmail_quote, #divRplyFwdMsg etc)
+          var quoted = div.querySelectorAll('blockquote, .gmail_quote, #divRplyFwdMsg, hr');
+          quoted.forEach(function(el) {
+            // Remove this element and everything after it
+            var parent = el.parentNode;
+            if (parent) {
+              var removing = false;
+              Array.from(parent.childNodes).forEach(function(node) {
+                if (node === el) removing = true;
+                if (removing) parent.removeChild(node);
+              });
+            }
+          });
+
+          // Get plain text of just the new compose area
+          var fullText = div.innerText || div.textContent || '';
+
+          // Strip signature - cut at first sign-off marker
+          var sigMarkers = ['Best,', 'Kind regards,', 'Regards,', 'Thanks,', 'Many thanks,', 'Cheers,'];
+          var bodyText = fullText;
+          window._currentSignature = '';
+          for (var s = 0; s < sigMarkers.length; s++) {
+            var idx = fullText.indexOf(sigMarkers[s]);
+            if (idx !== -1) {
+              bodyText = fullText.substring(0, idx).trim();
+              window._currentSignature = fullText.substring(idx);
+              break;
+            }
+          }
+
+          el('emailBody').value = bodyText;
           el('emailBody').placeholder = 'Paste your email draft here...';
         } else {
           el('emailBody').placeholder = 'Could not pull email — paste manually.';
