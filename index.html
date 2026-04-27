@@ -173,7 +173,7 @@
 </div>
 
 <div class="footer">
-  <span>outlook-grammar-addin v0.14</span>
+  <span>outlook-grammar-addin v0.15</span>
   <span id="tokenCount">—</span>
 </div>
 
@@ -227,9 +227,14 @@ function init() {
   function pullEmailBody() {
     if (Office.context && Office.context.mailbox && Office.context.mailbox.item) {
       el('emailBody').placeholder = 'Pulling from email...';
-      Office.context.mailbox.item.body.getAsync(Office.CoercionType.Text, function (result) {
+      Office.context.mailbox.item.body.getAsync(Office.CoercionType.Html, function (result) {
         if (result.status === Office.AsyncResultStatus.Succeeded && result.value.trim()) {
-          el('emailBody').value = result.value.trim();
+          // Store original HTML body for writing back later
+          window._originalHtmlBody = result.value;
+          // Strip HTML tags for display and AI processing
+          var div = document.createElement('div');
+          div.innerHTML = result.value;
+          el('emailBody').value = div.innerText || div.textContent || '';
           el('emailBody').placeholder = 'Paste your email draft here...';
         } else {
           el('emailBody').placeholder = 'Could not pull email — paste manually.';
@@ -406,16 +411,35 @@ function init() {
     el('emailBody').value = rewrite;
     if (Office.context && Office.context.mailbox && Office.context.mailbox.item) {
       // Convert plain text line breaks to HTML paragraphs for proper formatting
-      // Split body and signature — don't reformat signature block
-      var sig = window._currentSignature || '';
-      var bodyPart = sig ? rewrite.substring(0, rewrite.lastIndexOf(sig)).trim() : rewrite;
-      var html = bodyPart
-        .split(/\n\n+/)
-        .map(function(p) { return '<p>' + p.replace(/\n/g, '<br>') + '</p>'; })
-        .join('');
-      // Append signature as plain text paragraph
-      if (sig) html += '<p>' + sig.replace(/\n/g, '<br>') + '</p>';
-      Office.context.mailbox.item.body.setAsync(html, { coercionType: Office.CoercionType.Html });
+      // If we have the original HTML body, replace only the text content before the signature
+      if (window._originalHtmlBody) {
+        // Convert rewrite to HTML paragraphs
+        var sig = window._currentSignature || '';
+        var bodyPart = sig ? rewrite.substring(0, rewrite.lastIndexOf(sig)).trim() : rewrite;
+        var newHtml = bodyPart
+          .split(/\n\n+/)
+          .map(function(p) { return '<p>' + p.replace(/\n/g, '<br>') + '</p>'; })
+          .join('');
+        // Find signature in original HTML and preserve everything from it onwards
+        var sigMarkers = ['Best,', 'Kind regards,', 'Regards,', 'Thanks,', 'Many thanks,', 'Cheers,'];
+        var originalHtml = window._originalHtmlBody;
+        var sigIndex = -1;
+        for (var m = 0; m < sigMarkers.length; m++) {
+          sigIndex = originalHtml.indexOf(sigMarkers[m]);
+          if (sigIndex !== -1) break;
+        }
+        var finalHtml = sigIndex !== -1
+          ? newHtml + originalHtml.substring(sigIndex)
+          : newHtml;
+        Office.context.mailbox.item.body.setAsync(finalHtml, { coercionType: Office.CoercionType.Html });
+      } else {
+        // Fallback if no original HTML stored
+        var html = rewrite
+          .split(/\n\n+/)
+          .map(function(p) { return '<p>' + p.replace(/\n/g, '<br>') + '</p>'; })
+          .join('');
+        Office.context.mailbox.item.body.setAsync(html, { coercionType: Office.CoercionType.Html });
+      }
     }
     hideResults();
   });
