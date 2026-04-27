@@ -173,7 +173,7 @@
 </div>
 
 <div class="footer">
-  <span>outlook-grammar-addin v0.13</span>
+  <span>outlook-grammar-addin v0.14</span>
   <span id="tokenCount">—</span>
 </div>
 
@@ -291,6 +291,19 @@ function init() {
     el('runBtn').disabled = true;
     el('runBtn').classList.add('loading');
 
+    // Strip signature before sending to AI
+    var signatureMarkers = ['Best,', 'Kind regards,', 'Regards,', 'Thanks,', 'Many thanks,', 'Cheers,'];
+    var bodyToCheck = emailBody;
+    var signature = '';
+    for (var i = 0; i < signatureMarkers.length; i++) {
+      var markerIndex = emailBody.indexOf(signatureMarkers[i]);
+      if (markerIndex !== -1) {
+        bodyToCheck = emailBody.substring(0, markerIndex).trim();
+        signature = emailBody.substring(markerIndex);
+        break;
+      }
+    }
+
     var systemPrompt;
     if (currentMode === 'grammar') {
       systemPrompt = 'You are a grammar and spelling checker. You MUST respond ONLY with valid JSON on a single line. No other text. Format: {"issues":[{"type":"grammar","text":"description and fix"}],"rewrite":"the complete email with every error corrected"}. The rewrite field is REQUIRED. Preserve all paragraph breaks using \\n\\n between paragraphs. Keep the same structure and layout as the original email. If no errors, return the original text unchanged with paragraph breaks preserved.';
@@ -302,6 +315,9 @@ function init() {
       var bulletPoints = rules.indexOf('bullet-points') !== -1;
       systemPrompt = 'You are an email writing assistant. Respond ONLY with valid JSON on a single line, using \\n\\n between paragraphs and \\n for single line breaks: {"score":85,"issues":[{"type":"grammar","text":"description"}],"rewrite":"corrected email"}. Style rules: ' + rules.join(', ') + '. Rewrite: concise, professional, no em dashes, short sentences. IMPORTANT: preserve paragraph structure using \\n\\n between paragraphs.' + (bulletPoints ? ' If the email covers multiple topics, restructure them as bullet points.' : '');
     }
+
+    // Store signature for use in renderResults
+    window._currentSignature = signature;
 
     try {
       var resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
@@ -367,7 +383,11 @@ function init() {
     // Rewrite
     if (data.rewrite) {
       el('rewriteSection').style.display = 'flex';
-      el('rewriteBox').textContent = data.rewrite.replace(/\\n/g, '\n');
+      var rewriteText = data.rewrite.replace(/\\n/g, '\n');
+      // Reattach original signature
+      var sig = window._currentSignature || '';
+      if (sig) rewriteText = rewriteText + '\n\n' + sig;
+      el('rewriteBox').textContent = rewriteText;
     } else {
       el('rewriteSection').style.display = 'none';
     }
@@ -386,10 +406,15 @@ function init() {
     el('emailBody').value = rewrite;
     if (Office.context && Office.context.mailbox && Office.context.mailbox.item) {
       // Convert plain text line breaks to HTML paragraphs for proper formatting
-      var html = rewrite
+      // Split body and signature — don't reformat signature block
+      var sig = window._currentSignature || '';
+      var bodyPart = sig ? rewrite.substring(0, rewrite.lastIndexOf(sig)).trim() : rewrite;
+      var html = bodyPart
         .split(/\n\n+/)
         .map(function(p) { return '<p>' + p.replace(/\n/g, '<br>') + '</p>'; })
         .join('');
+      // Append signature as plain text paragraph
+      if (sig) html += '<p>' + sig.replace(/\n/g, '<br>') + '</p>';
       Office.context.mailbox.item.body.setAsync(html, { coercionType: Office.CoercionType.Html });
     }
     hideResults();
